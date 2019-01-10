@@ -52,6 +52,20 @@ class TestPlanets(TestCase):
 
         self.assertTrue(check)
 
+    def testVerleOpenCL(self):
+        check = True
+        for t in range(100):
+            t3.openclVerle.verle(delta, t3.particleList, t3.speeds, t3.speedups, t3.positions)
+            t3.verleOdeint(delta, 2)
+            frameError = 0
+            for i in range(1, len(t3.particleList)):
+                frameError += (abs(t3.positions[1][i].x - t3.positionsOde[1][i].x) +
+                               abs(t3.positions[1][i].y - t3.positionsOde[1][i].y) +
+                               abs(t3.positions[1][i].z - t3.positionsOde[1][i].z)) / \
+                              ((t3.positionsOde[1][i].x + t3.positionsOde[1][i].y + t3.positionsOde[1][i].z) / 3.0)
+            check = check and (frameError < precision)
+
+        self.assertTrue(check)
 
 '''
 # вывод

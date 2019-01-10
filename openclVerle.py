@@ -1,7 +1,7 @@
-#from __future__ import absolute_import, print_function
+from __future__ import absolute_import, print_function
 import pyopencl as cl
 import numpy as np
-
+import time
 
 class Position:
     def __init__(self, x, y, z):
@@ -79,7 +79,27 @@ def verle(delta, particleList, speeds, speedups, positions):
         positions_z_prev = np.append(positions_z_prev, positions[0][i].z)
         positions_z_next = np.append(positions_z_next, positions[1][i].z)
 
+    massValues = massValues.astype(np.float32)
+    speeds_u_prev = speeds_u_prev.astype(np.float32)
+    speeds_u_next = speeds_u_next.astype(np.float32)
+    speeds_v_prev = speeds_v_prev.astype(np.float32)
+    speeds_v_next = speeds_v_next.astype(np.float32)
+    speeds_w_prev = speeds_w_prev.astype(np.float32)
+    speeds_w_next = speeds_w_next.astype(np.float32)
 
+    speedups_x_prev = speedups_x_prev.astype(np.float32)
+    speedups_x_next = speedups_x_next.astype(np.float32)
+    speedups_y_prev = speedups_y_prev.astype(np.float32)
+    speedups_y_next = speedups_y_next.astype(np.float32)
+    speedups_z_prev = speedups_z_prev.astype(np.float32)
+    speedups_z_next = speedups_z_next.astype(np.float32)
+
+    positions_x_prev = positions_x_prev.astype(np.float32)
+    positions_x_next = positions_x_next.astype(np.float32)
+    positions_y_prev = positions_y_prev.astype(np.float32)
+    positions_y_next = positions_y_next.astype(np.float32)
+    positions_z_prev = positions_z_prev.astype(np.float32)
+    positions_z_next = positions_z_next.astype(np.float32)
 
     speeds_u_prev1 = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=speeds_u_prev)
     speeds_u_next1 = cl.Buffer(ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=speeds_u_next)
@@ -117,11 +137,12 @@ def verle(delta, particleList, speeds, speedups, positions):
                         __global float *massValues1)
     {
         int gid = get_global_id(0);
+        
         int size = sizeof(massValues1) / sizeof(float);
         int i;
-        float distance;
+        float distance, distance3;
         float G = 6.67e-11;
-
+        
         speedups_x_prev1[gid] = speedups_x_next1[gid];
         speedups_y_prev1[gid] = speedups_y_next1[gid];
         speedups_z_prev1[gid] = speedups_z_next1[gid];
@@ -135,23 +156,19 @@ def verle(delta, particleList, speeds, speedups, positions):
 
                 distance = sqrt((positions_x_prev1[i] - positions_x_prev1[gid])*(positions_x_prev1[i] - positions_x_prev1[gid])+
                              (positions_y_prev1[i] - positions_y_prev1[gid]) * (positions_y_prev1[i] - positions_y_prev1[gid])+
-                             (positions_x_prev1[i] - positions_z_prev1[gid]) * (positions_z_prev1[i] - positions_z_prev1[gid]));
+                             (positions_z_prev1[i] - positions_z_prev1[gid]) * (positions_z_prev1[i] - positions_z_prev1[gid]));
+                distance3 = distance * distance * distance;
 
-                speedups_x_next1[i] += G * massValues1[i] * (positions_x_prev1[i] - positions_x_prev1[gid]) /
-                    (distance * distance * distance);
-                speedups_y_next1[i] += G * massValues1[i] * (positions_y_prev1[i] - positions_y_prev1[gid]) /
-                    (distance * distance * distance);
-                speedups_z_next1[i] += G * massValues1[i] * (positions_z_prev1[i] - positions_z_prev1[gid]) /
-                    (distance * distance * distance);
+                speedups_x_next1[gid] += G * massValues1[i] * (positions_x_prev1[i] - positions_x_prev1[gid]) / distance3;
+                speedups_y_next1[gid] += G * massValues1[i] * (positions_y_prev1[i] - positions_y_prev1[gid]) / distance3;
+                speedups_z_next1[gid] += G * massValues1[i] * (positions_z_prev1[i] - positions_z_prev1[gid]) / distance3;
 
             }
         }
-
     }
     """).build()
 
-    prg.verle(queue, massValues.shape, None,
-              speeds_u_prev1, speeds_u_next1, speeds_v_prev1, speeds_v_next1, speeds_w_prev1, speeds_w_next1,
+    prg.verle(queue, massValues.shape, None, speeds_u_prev1, speeds_u_next1, speeds_v_prev1, speeds_v_next1, speeds_w_prev1, speeds_w_next1,
               speedups_x_prev1, speedups_x_next1, speedups_y_prev1, speedups_y_next1, speedups_z_prev1, speedups_z_next1,
               positions_x_prev1, positions_x_next1, positions_y_prev1, positions_y_next1, positions_z_prev1, positions_z_next1,
               massValues1)
@@ -163,7 +180,6 @@ def verle(delta, particleList, speeds, speedups, positions):
     cl.enqueue_copy(queue, speedups_y_prev, speedups_y_prev1)
     cl.enqueue_copy(queue, speedups_z_prev, speedups_z_prev1)
 
-
     for i in range(len(particleList)):
         speedups[0][i].ax = speedups_x_prev[i]
         speedups[0][i].ay = speedups_y_prev[i]
@@ -171,7 +187,6 @@ def verle(delta, particleList, speeds, speedups, positions):
         speedups[1][i].ax = speedups_x_next[i]
         speedups[1][i].ay = speedups_y_next[i]
         speedups[1][i].az = speedups_z_next[i]
-
 
     for i in range(len(particleList)):
         # координаты
@@ -203,7 +218,7 @@ def verle(delta, particleList, speeds, speedups, positions):
 
 ----------------------------------------------------------------------------
 
-    
+
 
 ----------------------------------------------------------------------------
 

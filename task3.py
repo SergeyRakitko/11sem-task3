@@ -385,7 +385,7 @@ class MainWindow(QMainWindow):
             del speedups[0][i]
             del speedups[1][i]
 
-
+        #'''
         if self.radio0.isChecked():
             verleOdeint(delta, 1)
         if self.radio1.isChecked():
@@ -396,11 +396,12 @@ class MainWindow(QMainWindow):
             cythonVerle.verle(delta, particleList, speeds, speedups, positions)
         if self.radio4.isChecked():
             openclVerle.verle(delta, particleList, speeds, speedups, positions)
+        #'''
 
-
+        # замеры времени
         '''
         moment1 = time.time()
-        cythonVerle.verle(delta, particleList, speeds, speedups, positions)
+        openclVerle.verle(delta, particleList, speeds, speedups, positions)
         moment2 = time.time()
         fulltime += moment2 - moment1
         if t % 50 == 0:
